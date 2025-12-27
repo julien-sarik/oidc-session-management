@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OIDC Session Management Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1976d2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: #1565c0;
+        }
+        ul {
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OIDC Session Management Demo</h1>
+
+        <div class="info">
+            <h2>About This Demo</h2>
+            <p>This application demonstrates OIDC (OpenID Connect) session management features using Keycloak as the OpenID Provider.</p>
+
+            <h3>Features Demonstrated:</h3>
+            <ul>
+                <li><strong>Session Monitoring:</strong> Real-time monitoring of OIDC session status using iframe-based session checks</li>
+                <li><strong>Session State Tracking:</strong> Display and track the session_state parameter</li>
+                <li><strong>Automatic Session Detection:</strong> Detect when user logs out from another tab/application</li>
+                <li><strong>RP-Initiated Logout:</strong> Properly logout from both application and Keycloak</li>
+            </ul>
+        </div>
+
+        <a href="/oauth2/authorization/keycloak" class="btn">Login with Keycloak</a>
+    </div>
+</body>
+</html>

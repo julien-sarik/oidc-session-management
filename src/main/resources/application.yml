@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: oidc-session-demo
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: oidc-demo-client
+            client-secret: your-client-secret-here
+            scope:
+              - openid
+              - profile
+              - email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8081/realms/demo
+            authorization-uri: http://localhost:8081/realms/demo/protocol/openid-connect/auth
+            token-uri: http://localhost:8081/realms/demo/protocol/openid-connect/token
+            user-info-uri: http://localhost:8081/realms/demo/protocol/openid-connect/userinfo
+            jwk-set-uri: http://localhost:8081/realms/demo/protocol/openid-connect/certs
+            user-name-attribute: preferred_username
+            end-session-uri: http://localhost:8081/realms/demo/protocol/openid-connect/logout
+
+# Keycloak configuration
+keycloak:
+  realm: demo
+  auth-server-url: http://localhost:8081
+  check-session-iframe: http://localhost:8081/realms/demo/protocol/openid-connect/login-status-iframe.html
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG

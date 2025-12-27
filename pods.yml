@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oidc-demo-pod
+  labels:
+    app: oidc-demo
+spec:
+  containers:
+  # Keycloak Container
+  - name: keycloak
+    image: quay.io/keycloak/keycloak:25.0.0
+    args:
+      - "start-dev"
+      - "--http-port=8081"
+    env:
+      - name: KEYCLOAK_ADMIN
+        value: "admin"
+      - name: KEYCLOAK_ADMIN_PASSWORD
+        value: "admin"
+      - name: KC_HTTP_PORT
+        value: "8081"
+      - name: KC_HOSTNAME_STRICT
+        value: "false"
+      - name: KC_HOSTNAME_STRICT_HTTPS
+        value: "false"
+      - name: KC_HTTP_ENABLED
+        value: "true"
+    ports:
+      - containerPort: 8081
+        hostPort: 8081
+        protocol: TCP
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+    volumeMounts:
+      - name: keycloak-data
+        mountPath: /opt/keycloak/data
+
+  # Spring Boot Application Container
+  - name: oidc-app
+    image: localhost/oidc-session-management:latest
+    env:
+      - name: SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER-URI
+        value: "http://localhost:8081/realms/demo"
+      - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT-ID
+        value: "oidc-demo-client"
+      - name: SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KEYCLOAK_CLIENT-SECRET
+        value: "your-client-secret-here"
+    ports:
+      - containerPort: 8080
+        hostPort: 8080
+        protocol: TCP
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    dependsOn:
+      - keycloak
+
+  volumes:
+    - name: keycloak-data
+      emptyDir: {}
+
+  restartPolicy: Always

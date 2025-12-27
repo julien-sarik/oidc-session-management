@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - OIDC Session Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .user-info {
+            background-color: #e8f5e9;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .session-monitor {
+            background-color: #fff3e0;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status.active {
+            background-color: #4caf50;
+            color: white;
+        }
+        .status.changed {
+            background-color: #ff9800;
+            color: white;
+        }
+        .status.error {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1976d2;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 10px 10px 0;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #1565c0;
+        }
+        .btn-danger {
+            background-color: #d32f2f;
+        }
+        .btn-danger:hover {
+            background-color: #c62828;
+        }
+        .code {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .info-row {
+            margin: 10px 0;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .log {
+            background-color: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        .log-time {
+            color: #80deea;
+        }
+        .log-changed {
+            color: #ffab40;
+        }
+        .log-error {
+            color: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dashboard</h1>
+
+        <div class="user-info">
+            <h2>User Information</h2>
+            <div class="info-row">
+                <span class="info-label">Username:</span>
+                <span th:text="${username}">user</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Name:</span>
+                <span th:text="${name}">Full Name</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email:</span>
+                <span th:text="${email}">user@example.com</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Session State:</span>
+                <span class="code" th:text="${sessionState}">session-state-value</span>
+            </div>
+        </div>
+
+        <div class="session-monitor">
+            <h2>OIDC Session Monitoring</h2>
+            <p>This section monitors your OIDC session in real-time using the <code>check_session_iframe</code> endpoint.</p>
+
+            <div class="info-row">
+                <span class="info-label">Session Status:</span>
+                <span id="sessionStatus" class="status active">ACTIVE</span>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">Check Interval:</span>
+                <span>2 seconds</span>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">Last Check:</span>
+                <span id="lastCheck">-</span>
+            </div>
+
+            <p style="margin-top: 20px;">
+                <strong>Try this:</strong> Open another tab, go to the Keycloak admin console
+                (<a href="http://localhost:8081" target="_blank">http://localhost:8081</a>),
+                and logout or end your session. This page will detect the session change automatically!
+            </p>
+        </div>
+
+        <div>
+            <a href="/logout" class="btn btn-danger">Logout (Local Only)</a>
+            <a href="/logout-oidc" class="btn btn-danger">Logout (OIDC - Full Logout)</a>
+            <button onclick="location.reload()" class="btn">Refresh Page</button>
+        </div>
+
+        <div class="log" id="logContainer">
+            <div class="log-entry">Session monitoring initialized...</div>
+        </div>
+    </div>
+
+    <!-- Hidden iframe for session monitoring -->
+    <iframe id="check-session-iframe"
+            th:src="${checkSessionIframe}"
+            style="display:none;">
+    </iframe>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const sessionState = /*[[${sessionState}]]*/ 'session-state';
+        const clientId = /*[[${clientId}]]*/ 'oidc-demo-client';
+        const checkSessionIframe = /*[[${checkSessionIframe}]]*/ '';
+        /*]]>*/
+
+        let iframe;
+        let sessionCheckInterval;
+        let checkIntervalMs = 2000; // Check every 2 seconds
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const now = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+
+            let className = '';
+            if (type === 'changed') {
+                className = 'log-changed';
+            } else if (type === 'error') {
+                className = 'log-error';
+            }
+
+            logEntry.innerHTML = `<span class="log-time">[${now}]</span> <span class="${className}">${message}</span>`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateLastCheck() {
+            document.getElementById('lastCheck').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateSessionStatus(status, message) {
+            const statusElement = document.getElementById('sessionStatus');
+            statusElement.className = 'status ' + status;
+            statusElement.textContent = message;
+        }
+
+        function handleSessionStatusChange() {
+            log('Session status changed! User may have logged out elsewhere.', 'changed');
+            updateSessionStatus('changed', 'SESSION CHANGED');
+
+            setTimeout(() => {
+                if (confirm('Your session has changed. Would you like to logout and login again?')) {
+                    window.location.href = '/logout-oidc';
+                }
+            }, 500);
+        }
+
+        function handleSessionError() {
+            log('Error checking session status', 'error');
+            updateSessionStatus('error', 'CHECK FAILED');
+        }
+
+        function setupSessionMonitoring() {
+            iframe = document.getElementById('check-session-iframe');
+
+            log('Setting up OIDC session monitoring...');
+            log('Check session iframe URL: ' + checkSessionIframe);
+            log('Client ID: ' + clientId);
+            log('Session State: ' + sessionState);
+
+            // Validate session_state before proceeding
+            if (!sessionState || sessionState === 'null' || sessionState === 'undefined') {
+                log('⚠ Session state is missing or invalid - session monitoring unavailable', 'error');
+                updateSessionStatus('error', 'NO SESSION STATE');
+                log('Session monitoring requires a valid session_state from the ID token', 'error');
+                return; // Don't proceed with monitoring
+            }
+
+            // Listen for messages from the iframe
+            window.addEventListener('message', function(e) {
+                // Verify the message is from our iframe
+                if (e.origin !== new URL(checkSessionIframe).origin) {
+                    return;
+                }
+
+                const message = e.data;
+
+                if (message === 'unchanged') {
+                    // Session is still valid
+                    updateLastCheck();
+                    updateSessionStatus('active', 'ACTIVE');
+                } else if (message === 'changed') {
+                    // Session has changed (user logged out elsewhere)
+                    handleSessionStatusChange();
+                    clearInterval(sessionCheckInterval);
+                } else if (message === 'error') {
+                    // Error occurred
+                    handleSessionError();
+                }
+            });
+
+            // Wait for iframe to load
+            iframe.onload = function() {
+                log('Check session iframe loaded successfully');
+
+                // Start periodic session checks
+                sessionCheckInterval = setInterval(function() {
+                    const message = clientId + ' ' + sessionState;
+                    iframe.contentWindow.postMessage(message, checkSessionIframe);
+                }, checkIntervalMs);
+
+                log('Started periodic session monitoring (every ' + (checkIntervalMs / 1000) + ' seconds)');
+
+                // Do an immediate first check
+                iframe.contentWindow.postMessage(clientId + ' ' + sessionState, checkSessionIframe);
+            };
+        }
+
+        // Initialize session monitoring when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupSessionMonitoring);
+        } else {
+            setupSessionMonitoring();
+        }
+
+        // Clean up interval when page unloads
+        window.addEventListener('beforeunload', function() {
+            if (sessionCheckInterval) {
+                clearInterval(sessionCheckInterval);
+            }
+        });
+    </script>
+</body>
+</html>
