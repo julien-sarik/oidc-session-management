@@ -10,7 +10,8 @@ spec:
   - name: keycloak
     image: quay.io/keycloak/keycloak:25.0.0
     args:
-      - "start-dev"
+      - "start"
+      - "--optimized"
       - "--http-port=8081"
     env:
       - name: KEYCLOAK_ADMIN
@@ -20,8 +21,6 @@ spec:
       - name: KC_HTTP_PORT
         value: "8081"
       - name: KC_HOSTNAME_STRICT
-        value: "false"
-      - name: KC_HOSTNAME_STRICT_HTTPS
         value: "false"
       - name: KC_HTTP_ENABLED
         value: "true"
